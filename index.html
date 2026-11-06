@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sync the Scene (씽크 더 씬) - 2D 픽셀 룸 시뮬레이션 게임</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #15161B;
+      --panel: #24252C;
+      --panel-light: #30313A;
+      --text: #F5F1E8;
+      --sub-text: #B7B8C2;
+      --accent: #FFB347;
+      --accent-hover: #FFC070;
+      --border: #2F3039;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      line-height: 1.6;
+      word-break: keep-all;
+    }
+
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* Header & Navigation */
+    header {
+      padding: 24px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--sub-text);
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 600;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 80px 0 60px;
+      text-align: center;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(255, 179, 71, 0.15);
+      color: var(--accent);
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255, 179, 71, 0.3);
+    }
+
+    .hero-title {
+      font-size: clamp(36px, 6vw, 64px);
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      color: #FFF;
+    }
+
+    .hero-title span {
+      color: var(--accent);
+    }
+
+    .hero-subtitle {
+      font-size: clamp(16px, 2.5vw, 20px);
+      color: var(--sub-text);
+      max-width: 640px;
+      margin: 0 auto 36px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 32px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: #2A1C05;
+      box-shadow: 0 4px 20px rgba(255, 179, 71, 0.3);
+    }
+
+    .btn-primary:hover {
+      background-color: var(--accent-hover);
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background-color: var(--panel-light);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background-color: #3A3B46;
+      transform: translateY(-2px);
+    }
+
+    /* Game Feature Grid */
+    .features {
+      padding: 80px 0;
+    }
+
+    .section-title {
+      text-align: center;
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 48px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      background-color: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: #4A4B56;
+    }
+
+    .card-icon {
+      font-size: 36px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+
+    .card-desc {
+      font-size: 15px;
+      color: var(--sub-text);
+      line-height: 1.6;
+    }
+
+    /* How to Play Section */
+    .how-to-play {
+      background-color: var(--panel);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 80px 0;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 24px;
+      margin-top: 40px;
+    }
+
+    .step-item {
+      position: relative;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .step-number {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .step-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .step-desc {
+      font-size: 14px;
+      color: var(--sub-text);
+    }
+
+    /* Footer */
+    footer {
+      padding: 40px 0;
+      text-align: center;
+      color: var(--sub-text);
+      font-size: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    footer p {
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header>
+    <div class="container nav">
+      <div class="logo">Sync the Scene</div>
+      <ul class="nav-links">
+        <li><a href="#about">게임 소개</a></li>
+        <li><a href="#features">주요 기능</a></li>
+        <li><a href="#how-to-play">플레이 방법</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero container" id="about">
+    <span class="hero-badge">2D Visual Simulation Game</span>
+    <h1 class="hero-title">목표 공간의 감성을<br><span>그대로 재현해보세요</span></h1>
+    <p class="hero-subtitle">
+      <strong>Sync the Scene (씽크 더 씬)</strong>은 목표 사진을 바탕으로 픽셀 룸을 가꾸고, 조명과 초점을 맞춰 가장 정확하고 감성적인 한 컷을 완성하는 공간 연출 시뮬레이션 게임입니다.
+    </p>
+    <div class="btn-group">
+      <!-- 바로 플레이하기 버튼 (Sync_the_Scene.html 로 연결 설정) -->
+      <a href="Sync_the_Scene.html" class="btn btn-primary">🎮 지금 플레이하기</a>
+      <a href="https://github.com" target="_blank" class="btn btn-secondary">💾 GitHub Repository</a>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features container" id="features">
+    <h2 class="section-title">핵심 특징</h2>
+    <div class="grid">
+      
+      <div class="card">
+        <div class="card-icon">🛋️</div>
+        <h3 class="card-title">직관적인 가구 배치</h3>
+        <p class="card-desc">소파, 테이블, 화분, 스탠드, 러그 등 다양한 픽셀 아티펙트를 바닥 공간에 자율적으로 배치하고 이동시킬 수 있습니다.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">💡</div>
+        <h3 class="card-title">정밀한 시각 연출 및 조명</h3>
+        <p class="card-desc">빛의 방향(-90° ~ 90°), 색온도(차갑게 ~ 노을빛), 초점 및 아웃포커싱 디테일을 조절해 장면의 디테일을 살립니다.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">🔍</div>
+        <h3 class="card-title">전략적 힌트 시스템</h3>
+        <p class="card-desc">스테이지마다 제한된 횟수의 '목표 사진 확대' 기회를 효율적으로 활용하여 일치율 100%에 도전해보세요.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">📸</div>
+        <h3 class="card-title">실시간 분석 & 피드백</h3>
+        <p class="card-desc">촬영 즉시 가구 배치와 조명 연출 요소를 가중치로 자동 계산하여 일치율, 등급 및 피드백을 제공합니다.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- How To Play Section -->
+  <section class="how-to-play" id="how-to-play">
+    <div class="container">
+      <h2 class="section-title">게임 플레이 흐름</h2>
+      <div class="steps">
+        
+        <div class="step-item">
+          <div class="step-number">STEP 01</div>
+          <h3 class="step-title">목표 확인</h3>
+          <p class="step-desc">흐릿한 썸네일을 확인하고 필요 시 돋보기 버튼으로 목표 장면을 정밀 확인합니다.</p>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">STEP 02</div>
+          <h3 class="step-title">가구 배치</h3>
+          <p class="step-desc">팔레트에서 원하는 가구를 골라 픽셀 룸 공간 위에 위치에 맞춰 배치합니다.</p>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">STEP 03</div>
+          <h3 class="step-title">조명 & 초점 조절</h3>
+          <p class="step-desc">방향, 분위기(색온도), 렌즈 초점을 조정하여 목표 사진과 유사한 감성을 만듭니다.</p>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">STEP 04</div>
+          <h3 class="step-title">촬영 & 결과 산출</h3>
+          <p class="step-desc">셔터를 눌러 촬영을 진행하고, 완성도 점수와 피드백을 확인합니다.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p><strong>Sync the Scene</strong> — 2D Pixel Room Photography Simulation</p>
+      <p>© 2026 Sync the Scene. All rights reserved.</p>
+    </div>
+  </footer>
+
+</body>
+</html>

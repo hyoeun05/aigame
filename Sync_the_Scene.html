@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sync the Scene</title>
+<style>
+:root{
+  --bg:#15161B; --panel:#24252C; --panel2:#30313A; --text:#F5F1E8; --sub:#B7B8C2; --accent:#FFB347;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif}
+body{min-height:100vh}
+#app{max-width:1080px;margin:0 auto;padding:10px 12px 28px}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  background:var(--panel);border-radius:14px;padding:10px 14px;margin-bottom:10px;border:1px solid #2f3039}
+h1{margin:0;font-size:20px;letter-spacing:.5px;color:var(--accent)}
+.stage-info{display:flex;flex-direction:column;align-items:flex-end;font-size:13px;color:var(--sub);gap:2px}
+.stage-info b{color:var(--text);font-size:15px}
+.stage-info .views b{color:var(--accent)}
+.layout{display:grid;gap:10px;grid-template-columns:minmax(0,1fr);
+  grid-template-areas:"target" "room" "panel"}
+@media(min-width:900px){
+  .layout{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);grid-template-areas:"room target" "room panel";align-items:start}
+}
+.card{background:var(--panel);border-radius:14px;padding:12px;border:1px solid #2f3039}
+.card h2{margin:0 0 8px;font-size:14px;color:var(--sub);font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.badge{background:var(--accent);color:#2a1c05;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700}
+#targetCard{grid-area:target;display:flex;gap:12px;align-items:center}
+#roomCard{grid-area:room}
+#panelArea{grid-area:panel;display:flex;flex-direction:column;gap:10px}
+.photo{position:relative;flex:0 0 38%;max-width:200px;background:#fff;padding:5px 5px 14px;border-radius:3px;box-shadow:0 4px 14px rgba(0,0,0,.5);transform:rotate(-1.5deg)}
+.photo canvas{display:block;width:100%;height:auto;aspect-ratio:4/3;image-rendering:pixelated;background:#222}
+.photo-info{flex:1;min-width:0}
+.photo-info .t{font-weight:700;margin-bottom:4px}
+.photo-info .c{font-size:13px;color:var(--sub);margin-bottom:8px;line-height:1.45}
+.photo-info .c b{color:var(--accent);font-size:15px}
+@media(min-width:900px){
+  #targetCard{flex-direction:column;align-items:stretch}
+  .photo{flex:none;max-width:none;width:78%;align-self:center}
+}
+button{font-family:inherit;font-size:14px;border:0;border-radius:10px;padding:11px 14px;cursor:pointer;color:var(--text);background:var(--panel2);
+  transition:transform .08s, background .15s;touch-action:manipulation}
+button:active:not(:disabled){transform:scale(.97)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:var(--accent);color:#2a1c05;font-weight:700}
+button.primary:hover:not(:disabled){background:#ffc070}
+button.ghost:hover:not(:disabled){background:#3a3b46}
+.room-wrap{position:relative;border-radius:10px;overflow:hidden;background:#000}
+#roomCanvas{display:block;width:100%;height:auto;aspect-ratio:4/3;image-rendering:pixelated;touch-action:none;user-select:none;-webkit-user-select:none;cursor:crosshair}
+#flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+#flash.go{animation:fl .5s ease-out}
+@keyframes fl{0%{opacity:.95}100%{opacity:0}}
+.hint{font-size:13px;color:var(--sub);line-height:1.5;margin:0 0 10px}
+.palette{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px}
+.palbtn{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 2px 6px;font-size:12px;border:2px solid transparent}
+.palbtn canvas{width:44px;height:44px;image-rendering:pixelated}
+.palbtn.sel{border-color:var(--accent);background:#3d3a35}
+.palbtn .cnt{position:absolute;top:3px;right:4px;font-size:11px;color:var(--accent);font-weight:700}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>button{flex:1 1 auto}
+.slider{margin-bottom:12px}
+.slider label{display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px}
+.slider output{color:var(--accent);font-weight:700;min-width:48px;text-align:right}
+input[type=range]{width:100%;height:28px;accent-color:var(--accent);touch-action:pan-y}
+#tempRange{background:linear-gradient(90deg,#6fa6ff,#f3f3f3,#ff9a45);border-radius:6px;height:10px;-webkit-appearance:none;appearance:none;margin:9px 0}
+#tempRange::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--accent);border:3px solid #15161B}
+#tempRange::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--accent);border:3px solid #15161B}
+.hidden{display:none!important}
+.modal{position:fixed;inset:0;background:rgba(10,10,14,.88);display:flex;align-items:center;justify-content:center;z-index:50;padding:14px;overflow:auto}
+.modal[hidden]{display:none}
+.dialog{background:var(--panel);border:1px solid #3a3b46;border-radius:16px;padding:16px;width:100%;max-width:680px;max-height:100%;overflow:auto}
+.dialog h3{margin:0 0 10px;color:var(--accent)}
+.zoomimg{width:100%;height:auto;aspect-ratio:4/3;image-rendering:pixelated;display:block;border:6px solid #fff;border-radius:3px;background:#222}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.pair figure{margin:0;text-align:center;font-size:12px;color:var(--sub)}
+.pair canvas{width:100%;height:auto;aspect-ratio:4/3;image-rendering:pixelated;border:4px solid #fff;border-radius:3px;display:block;margin-bottom:4px;background:#222}
+.score{font-size:56px;font-weight:800;color:var(--accent);text-align:center;line-height:1.1}
+.msg{text-align:center;font-size:18px;font-weight:700;margin:4px 0 8px}
+.detail{text-align:center;color:var(--sub);font-size:13px;margin-bottom:12px}
+.flist{list-style:none;padding:0;margin:10px 0}
+.flist li{display:flex;justify-content:space-between;background:var(--panel2);border-radius:10px;padding:10px 12px;margin-bottom:6px}
+
+.flist li b{color:var(--accent)}
+/* 시작 화면: 픽셀 아트 방을 전면 배경으로 사용 */
+#startModal{padding:0;background:#111;overflow:hidden}
+.start-dialog{position:relative;isolation:isolate;width:100%;height:100%;max-width:none;max-height:none;overflow:hidden;border:0;border-radius:0;padding:0;text-align:center;background:radial-gradient(circle at 50% 35%,#303047,#171b2b 75%);display:flex;align-items:center;justify-content:center}
+.start-preview{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;transform:none;border-radius:0;background:#242038;box-shadow:none;z-index:-2}
+.start-preview canvas{display:block;width:100%;height:100%;aspect-ratio:auto;object-fit:cover;image-rendering:pixelated;filter:brightness(.68) saturate(.9)}
+.start-preview-caption{display:none}
+.start-dialog:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(15,17,31,.12),rgba(16,17,34,.2) 45%,rgba(13,16,31,.48));pointer-events:none}
+.start-content{width:min(92%,560px);padding:24px 18px;text-shadow:0 3px 12px #171329;z-index:1}
+.start-kicker{color:#ffe19a;font-size:clamp(10px,1.5vw,13px);letter-spacing:3px;font-weight:800;margin-bottom:14px}
+.start-title{font-size:clamp(46px,8vw,92px);line-height:.98;letter-spacing:-2px;color:#ffe6a2;margin:0 0 24px!important;text-shadow:3px 4px 0 #493653,0 0 22px #ffbf5b55}
+.start-title span{color:#fff0c8}
+.start-desc{color:#fff7eb;line-height:1.8;margin:0 auto 28px;max-width:440px;font-size:clamp(14px,2vw,18px);text-shadow:0 2px 6px #151323}
+.start-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.start-actions button{min-width:220px;padding:16px 28px;border-radius:999px;font-size:18px;box-shadow:0 5px 0 #a66d25,0 10px 25px #090b1680}
+.start-actions button.primary{background:#ffd16a;color:#241b26}
+.start-bottom-tools{position:absolute;left:22px;bottom:22px;display:flex;gap:10px;z-index:2}
+.start-bottom-tools button{width:44px;height:44px;border-radius:50%;padding:0;background:#171b2acc;border:1px solid #ffffff40;font-size:20px}
+@media(max-width:480px){.start-title{font-size:clamp(42px,12vw,64px)}.start-desc{font-size:14px}.start-actions button{width:min(100%,280px)}.start-bottom-tools{left:14px;bottom:14px}}
+.final-polaroid{width:min(100%,390px);margin:14px auto 20px;padding:10px 10px 42px;background:#fff;border-radius:3px;box-shadow:0 10px 28px #0006;transform:rotate(-2deg)}
+.final-polaroid canvas{display:block;width:100%;height:auto;aspect-ratio:4/3;image-rendering:pixelated;background:#222}
+.final-caption{font-family:Georgia,serif;color:#64564b;text-align:center;font-size:14px;margin-top:12px}
+.final-heading{text-align:center;font-size:clamp(22px,4vw,30px);font-weight:800;color:var(--accent);margin:0 0 4px}
+#finalModal .dialog{max-width:560px}
+#finalModal .score{font-size:clamp(42px,9vw,60px);margin:4px 0 8px}
+@media(max-width:480px){.start-actions button{width:100%}.start-preview{padding:7px 7px 27px}.final-polaroid{padding:7px 7px 32px}}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000c;color:#fff;padding:10px 16px;border-radius:999px;font-size:13px;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <h1>Sync the Scene</h1>
+    <div class="stage-info">
+      <b id="stageLabel">STAGE 1 · 아늑한 거실</b>
+      <span class="views">남은 확인 횟수 <b id="viewsTop">6 / 6</b></span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section class="card" id="targetCard">
+      <div class="photo"><canvas id="thumbCanvas" width="160" height="120"></canvas></div>
+      <div class="photo-info">
+        <div class="t">목표 사진</div>
+        <div class="c">흐릿한 미리보기입니다. 확대하면 선명하게 볼 수 있지만 횟수가 차감돼요.<br>남은 확인 횟수 <b id="viewsText">6 / 6</b></div>
+        <button class="primary" id="zoomBtn" type="button">🔍 목표 사진 확대</button>
+      </div>
+    </section>
+
+    <section class="card" id="roomCard">
+      <h2><span>현재 공간</span><span class="badge" id="phaseBadge">① 가구 배치</span></h2>
+      <div class="room-wrap">
+        <canvas id="roomCanvas" width="320" height="240"></canvas>
+        <div id="flash"></div>
+      </div>
+    </section>
+
+    <div id="panelArea">
+      <section class="card" id="panelPlace">
+        <h2><span>가구 배치</span></h2>
+        <p class="hint">가구를 선택한 뒤 방에 배치하세요.<br>배치한 가구는 드래그하여 자유롭게 이동할 수 있습니다.</p>
+        <p class="hint" id="selHint" style="color:var(--accent)"></p>
+        <div class="palette" id="palette"></div>
+        <div class="row" style="margin-bottom:8px">
+          <button class="ghost" id="undoBtn" type="button">마지막 가구 삭제</button>
+          <button class="ghost" id="clearBtn" type="button">전체 비우기</button>
+        </div>
+        <button class="primary" id="doneBtn" type="button" style="width:100%">배치 완료 · 조명 조절하기</button>
+      </section>
+
+      <section class="card hidden" id="panelLight">
+        <h2><span>조명 설정</span></h2>
+        <div class="slider">
+          <label for="dirRange"><span>조명 방향</span><output id="dirVal">0°</output></label>
+          <input type="range" id="dirRange" min="-90" max="90" step="1" value="0">
+        </div>
+        <div class="slider">
+          <label for="tempRange"><span>색온도</span><output id="tempVal">50</output></label>
+          <input type="range" id="tempRange" min="0" max="100" step="1" value="50">
+        </div>
+        <div class="slider">
+          <label for="focusRange"><span>초점 / 흐림</span><output id="focusVal">0</output></label>
+          <input type="range" id="focusRange" min="0" max="6" step="0.5" value="0">
+        </div>
+        <div class="row">
+          <button class="ghost" id="backBtn" type="button">가구 다시 배치</button>
+          <button class="primary" id="shootBtn" type="button">📷 촬영하기</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="startModal">
+  <div class="dialog start-dialog">
+    <div class="start-content">
+      <div class="start-kicker">A PIXEL ROOM PHOTOGRAPHY GAME</div>
+      <h2 class="start-title">Sync <span>the</span><br>Scene</h2>
+      <p class="start-desc">같은 공간, 다른 기억<br>지금, 그 장면을 완성해보세요.</p>
+      <div class="start-actions"><button class="primary" id="startBtn" type="button">▶　시작하기</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="zoomModal" hidden>
+  <div class="dialog">
+    <h3>목표 사진</h3>
+    <canvas class="zoomimg" id="zoomCanvas" width="320" height="240"></canvas>
+    <button class="primary" id="zoomClose" type="button" style="width:100%;margin-top:12px">닫기</button>
+  </div>
+</div>
+
+<div class="modal" id="resultModal" hidden>
+  <div class="dialog">
+    <h3 id="resStage">STAGE 1 촬영 결과</h3>
+    <div class="pair">
+      <figure><canvas id="resCanvas" width="320" height="240"></canvas>내 촬영</figure>
+      <figure><canvas id="resTarget" width="320" height="240"></canvas>목표 사진</figure>
+    </div>
+    <div class="score" id="resScore">0%</div>
+    <div class="msg" id="resMsg"></div>
+    <div class="detail" id="resDetail"></div>
+    <button class="primary" id="nextBtn" type="button" style="width:100%">다음 스테이지</button>
+  </div>
+</div>
+
+<div class="modal" id="finalModal" hidden>
+  <div class="dialog">
+    <h3 class="final-heading">✦ 장면 완성! ✦</h3>
+    <div class="final-polaroid">
+      <canvas id="finalPhoto" width="320" height="240"></canvas>
+      <div class="final-caption">Sync the Scene · My Memory</div>
+    </div>
+    <div class="detail">내가 꾸민 방의 최종 사진</div>
+    <ul class="flist" id="finalList"></ul>
+    <div class="score" id="finalAvg">0%</div>
+    <div class="detail" id="finalMsg"></div>
+    <button class="primary" id="restartBtn" type="button" style="width:100%">처음으로</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ───────── 상수 & 데이터 ───────── */
+const W = 320, H = 240, FLOOR_Y = 110;
+const MAX_PER_TYPE = 3, MAX_TOTAL = 12;
+const TYPES = {
+  sofa:  { name:'소파',   w:80, h:40 },
+  table: { name:'테이블', w:44, h:28 },
+  plant: { name:'화분',   w:22, h:40 },
+  lamp:  { name:'스탠드', w:16, h:56 },
+  rug:   { name:'러그',   w:90, h:40 }
+};
+const ORDER = ['sofa','table','plant','lamp','rug'];
+
+// 스테이지별 정답 데이터 (x,y = 가구 바닥 중앙 좌표)
+const STAGES = [
+  { name:'아늑한 거실', views:6, light:{dir:-25,temp:70,focus:1},
+    items:[ {type:'rug',x:160,y:205}, {type:'sofa',x:160,y:150}, {type:'table',x:160,y:198},
+            {type:'plant',x:40,y:172}, {type:'lamp',x:275,y:160} ] },
+  { name:'햇살 드는 라운지', views:4, light:{dir:40,temp:85,focus:1.5},
+    items:[ {type:'rug',x:215,y:205}, {type:'sofa',x:95,y:160}, {type:'table',x:215,y:190},
+            {type:'plant',x:290,y:178}, {type:'plant',x:30,y:218}, {type:'lamp',x:170,y:130} ] },
+  { name:'무드 있는 스튜디오', views:2, light:{dir:-55,temp:22,focus:3},
+    items:[ {type:'rug',x:165,y:208}, {type:'sofa',x:235,y:152}, {type:'table',x:150,y:198},
+            {type:'table',x:55,y:162}, {type:'plant',x:55,y:150}, {type:'plant',x:295,y:204},
+            {type:'lamp',x:100,y:128}, {type:'lamp',x:300,y:140} ] }
+];
+
+const clamp = (v,a,b) => Math.min(b, Math.max(a,v));
+const lerp = (a,b,t) => a + (b-a)*t;
+const $ = id => document.getElementById(id);
+
+/* ───────── 픽셀 아트 그리기 ───────── */
+let g = null;
+function R(c,x,y,w,h){ g.fillStyle=c; g.fillRect(Math.round(x),Math.round(y),w,h); }
+
+const DRAW = {
+  sofa(x,y){
+    const ox=x-40, oy=y-40;
+    R('#3b2a26',ox+6,oy+37,5,3); R('#3b2a26',ox+69,oy+37,5,3);
+    R('#7d3f35',ox+6,oy+2,68,22); R('#964b3f',ox+6,oy+2,68,3);
+    R('#a85a4b',ox+10,oy+6,29,16); R('#a85a4b',ox+41,oy+6,29,16);
+    R('#7d3f35',ox+39,oy+6,2,16);
+    R('#6b342c',ox,oy+14,14,24); R('#8a4539',ox,oy+14,14,4);
+    R('#6b342c',ox+66,oy+14,14,24); R('#8a4539',ox+66,oy+14,14,4);
+    R('#b8665a',ox+12,oy+22,56,13); R('#c97769',ox+12,oy+22,56,3);
+    R('#8e473d',ox+40,oy+25,1,10); R('#8e473d',ox+12,oy+33,56,2);
+  },
+  table(x,y){
+    const ox=x-22, oy=y-28;
+    R('#5b4128',ox+3,oy+11,4,17); R('#5b4128',ox+37,oy+11,4,17);
+    R('#8e6a3c',ox,oy+8,44,4);
+    R('#c99a5b',ox,oy,44,8); R('#e0b678',ox,oy,44,2);
+    R('#4d7ea8',ox+30,oy+3,8,3); R('#e8e4da',ox+8,oy+3,6,3);
+  },
+  plant(x,y){
+    const ox=x-11, oy=y-40;
+    R('#2f6b3b',ox+10,oy+10,2,18);
+    R('#3f8f4f',ox+2,oy+8,8,6); R('#4fb062',ox+1,oy+6,6,4);
+    R('#3f8f4f',ox+12,oy+4,8,6); R('#4fb062',ox+14,oy+2,6,4);
+    R('#4fb062',ox+7,oy,8,8); R('#6cc97a',ox+9,oy+1,4,4);
+    R('#3f8f4f',ox+3,oy+16,7,5); R('#4fb062',ox+12,oy+15,8,5);
+    R('#b5623e',ox+5,oy+28,12,12); R('#cf7a52',ox+4,oy+27,14,3); R('#8f4a2d',ox+5,oy+37,12,3);
+  },
+  lamp(x,y){
+    const ox=x-8, oy=y-56;
+    R('#3d322b',ox+3,oy+52,10,4); R('#5a4a3d',ox+4,oy+50,8,2);
+    R('#7a6757',ox+7,oy+14,2,37);
+    R('#e8a94f',ox+5,oy,6,2); R('#f2bb62',ox+3,oy+2,10,3);
+    R('#ffd27a',ox+1,oy+5,14,5); R('#d98f3a',ox+1,oy+10,14,2);
+    R('#c9a24a',ox+7,oy+12,2,3);
+  },
+  rug(x,y){
+    const ox=x-45, oy=y-40;
+    R('#3a4676',ox+3,oy,84,40); R('#3a4676',ox,oy+3,90,34);
+    R('#e0c987',ox+5,oy+3,80,34); R('#e0c987',ox+3,oy+5,84,30);
+    R('#5a6fa8',ox+7,oy+5,76,30); R('#5a6fa8',ox+5,oy+7,80,26);
+    R('#3a4676',ox+12,oy+10,66,20);
+    R('#7d92d0',ox+16,oy+13,58,14);
+    R('#e0c987',ox+36,oy+17,18,6);
+  }
+};
+
+function mix(a,b,t){ return [Math.round(lerp(a[0],b[0],t)),Math.round(lerp(a[1],b[1],t)),Math.round(lerp(a[2],b[2],t))]; }
+function rgb(c){ return 'rgb('+c[0]+','+c[1]+','+c[2]+')'; }
+function skyTop(t){
+  return t<50 ? mix([120,170,240],[170,210,250],t/50) : mix([170,210,250],[255,140,85],(t-50)/50);
+}
+function skyBottom(t){
+  return t<50 ? mix([190,220,250],[225,240,255],t/50) : mix([225,240,255],[255,205,140],(t-50)/50);
+}
+
+function sortedItems(items){
+  return items.map((it,i)=>({it,i})).sort((a,b)=>{
+    const la = a.it.type==='rug'?0:1, lb = b.it.type==='rug'?0:1;
+    if(la!==lb) return la-lb;
+    if(a.it.y!==b.it.y) return a.it.y-b.it.y;
+    return a.i-b.i;
+  }).map(o=>o.it);
+}
+
+function paintRoom(ctx, items, L){
+  g = ctx;
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation='source-over';
+  const a = L.dir*Math.PI/180;
+
+  // 벽
+  R('#74647a',0,0,W,FLOOR_Y);
+  for(let x=0;x<W;x+=16) R('#7c6c83',x,6,8,FLOOR_Y-12);
+  R('#4a3d50',0,0,W,6);
+  R('#3d3140',0,FLOOR_Y-6,W,6); R('#55465a',0,FLOOR_Y-6,W,1);
+
+  // 창문
+  const wx=116, wy=18, ww=88, wh=62;
+  R('#efe3cc',wx-4,wy-4,ww+8,wh+8);
+  const st = skyTop(L.temp), sb = skyBottom(L.temp);
+  for(let i=0;i<wh;i+=2){ R(rgb(mix(st,sb,i/wh)),wx,wy+i,ww,2); }
+  R('#fff6',wx+12,wy+10,14,4); R('#fff6',wx+18,wy+14,20,4);
+  R('#efe3cc',wx+ww/2-2,wy,4,wh); R('#efe3cc',wx,wy+wh/2-2,ww,4);
+  R('#cdbd9f',wx-8,wy+wh+4,ww+16,4);
+  R('#a8574b',wx-26,wy-8,18,wh+22); R('#c06a5c',wx-26,wy-8,6,wh+22);
+  R('#a8574b',wx+ww+8,wy-8,18,wh+22); R('#c06a5c',wx+ww+8,wy-8,6,wh+22);
+  R('#6b4a3a',wx-30,wy-12,ww+60,4);
+
+  // 바닥
+  for(let row=0; row<14; row++){
+    const y = FLOOR_Y+row*10;
+    R(row%2?'#9f7146':'#a97a4c',0,y,W,10);
+    R('#7f5a38',0,y+9,W,1);
+    const off = (row%2)*24 + (row*13)%40;
+    for(let x=-off; x<W; x+=64) R('#7f5a38',x,y,1,10);
+  }
+
+  // 창문에서 들어오는 빛 (조명 방향에 따라 이동)
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0,FLOOR_Y,W,H-FLOOR_Y); ctx.clip();
+  const s0 = Math.sin(a)*20, s1 = Math.sin(a)*120;
+  ctx.fillStyle='rgba(255,240,196,0.22)';
+  ctx.beginPath();
+  ctx.moveTo(wx+s0,FLOOR_Y); ctx.lineTo(wx+ww+s0,FLOOR_Y);
+  ctx.lineTo(wx+ww+40+s1,H); ctx.lineTo(wx-40+s1,H); ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  // 가구 (그림자 → 본체)
+  const list = sortedItems(items);
+  for(const it of list){
+    const T = TYPES[it.type];
+    if(it.type!=='rug'){
+      const sx = -Math.sin(a)*T.h*0.55;
+      ctx.fillStyle='rgba(0,0,0,0.30)';
+      ctx.beginPath();
+      ctx.ellipse(it.x+sx*0.6, it.y-1, T.w*0.5+Math.abs(sx)*0.5, 5, 0, 0, Math.PI*2);
+      ctx.fill();
+    }
+    DRAW[it.type](it.x,it.y);
+  }
+
+  // 스탠드 은은한 불빛
+  for(const it of list){
+    if(it.type==='lamp'){
+      const cx=it.x, cy=it.y-50;
+      const gr = ctx.createRadialGradient(cx,cy,2,cx,cy,75);
+      gr.addColorStop(0,'rgba(255,205,120,0.45)'); gr.addColorStop(1,'rgba(255,205,120,0)');
+      ctx.fillStyle=gr; ctx.fillRect(cx-80,cy-80,160,160);
+    }
+  }
+
+  // 조명 방향: 빛이 오는 쪽은 밝게, 반대쪽은 어둡게
+  const lx = W/2 + Math.sin(a)*W*0.55;
+  const gr2 = ctx.createRadialGradient(lx,30,10,lx,60,300);
+  gr2.addColorStop(0,'rgba(255,244,214,0.20)'); gr2.addColorStop(1,'rgba(0,0,0,0.38)');
+  ctx.fillStyle=gr2; ctx.fillRect(0,0,W,H);
+
+  // 색온도 틴트
+  const t = L.temp;
+  if(t<50) ctx.fillStyle='rgba(90,150,255,'+((50-t)/50*0.30).toFixed(3)+')';
+  else     ctx.fillStyle='rgba(255,140,40,'+((t-50)/50*0.32).toFixed(3)+')';
+  ctx.fillRect(0,0,W,H);
+}
+
+const sceneCanvas = document.createElement('canvas'); sceneCanvas.width=W; sceneCanvas.height=H;
+const smallCanvas = document.createElement('canvas');
+
+// 초점/흐림까지 적용한 최종 렌더링 (Safari 등 ctx.filter 미지원 대응: 축소-확대 방식)
+function renderFinal(dst, items, L){
+  if(L.focus <= 0.01){ paintRoom(dst, items, L); return; }
+  const sctx = sceneCanvas.getContext('2d');
+  paintRoom(sctx, items, L);
+  const k = 1/(1+L.focus*0.9);
+  const sw = Math.max(6,Math.round(W*k)), sh = Math.max(5,Math.round(H*k));
+  smallCanvas.width = sw; smallCanvas.height = sh;
+  const c2 = smallCanvas.getContext('2d');
+  c2.imageSmoothingEnabled = true;
+  c2.drawImage(sceneCanvas,0,0,sw,sh);
+  dst.setTransform(1,0,0,1,0,0);
+  dst.globalAlpha=1; dst.globalCompositeOperation='source-over';
+  dst.imageSmoothingEnabled = true;
+  dst.clearRect(0,0,W,H);
+  dst.drawImage(smallCanvas,0,0,sw,sh,0,0,W,H);
+}
+
+/* ───────── 점수 계산 ───────── */
+function computeScore(items, stage){
+  const targets = stage.items;
+  const used = new Set();
+  const matched = new Array(targets.length).fill(null);
+  ORDER.forEach(type=>{
+    const ti = [], ci = [];
+    targets.forEach((t,i)=>{ if(t.type===type) ti.push(i); });
+    items.forEach((c,i)=>{ if(c.type===type) ci.push(i); });
+    const pairs = [];
+    ti.forEach(a=>ci.forEach(b=>{
+      pairs.push({a,b,d:Math.hypot(targets[a].x-items[b].x, targets[a].y-items[b].y)});
+    }));
+    pairs.sort((p,q)=>p.d-q.d);
+    const ua = new Set(), ub = new Set();
+    pairs.forEach(p=>{
+      if(ua.has(p.a)||ub.has(p.b)) return;
+      ua.add(p.a); ub.add(p.b); matched[p.a]=items[p.b]; used.add(p.b);
+    });
+  });
+  const n = targets.length;
+  let present=0, pos=0;
+  targets.forEach((t,i)=>{
+    const m = matched[i];
+    if(m){ present++; pos += Math.max(0, 1 - Math.hypot(t.x-m.x,t.y-m.y)/60); }
+  });
+  present/=n; pos/=n;
+  let lay=0, pc=0;
+  for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
+    pc++;
+    const mi=matched[i], mj=matched[j];
+    if(!mi||!mj) continue;
+    const ddx = (mj.x-mi.x)-(targets[j].x-targets[i].x);
+    const ddy = (mj.y-mi.y)-(targets[j].y-targets[i].y);
+    lay += Math.max(0, 1 - Math.hypot(ddx,ddy)/70);
+  }
+  lay = pc? lay/pc : 0;
+  const extra = Math.max(0, items.length - n);
+  const extraPenalty = Math.max(0.4, 1 - 0.08*extra);
+  const furn = (0.20*present + 0.55*pos + 0.25*lay) * extraPenalty;
+
+  const L = stage.light, C = state.light;
+  const sd = Math.max(0, 1 - Math.abs(L.dir-C.dir)/70);
+  const stp = Math.max(0, 1 - Math.abs(L.temp-C.temp)/45);
+  const sf = Math.max(0, 1 - Math.abs(L.focus-C.focus)/3);
+  const light = 0.40*sd + 0.35*stp + 0.25*sf;
+
+  const total = clamp(Math.round((0.55*furn + 0.45*light)*100), 0, 100);
+  return { total, furn:Math.round(furn*100), light:Math.round(light*100) };
+}
+
+/* ───────── 상태 ───────── */
+const state = {
+  stage:0, phase:'place', items:[], nextId:1,
+  selectedType:null, selectedId:null, drag:null,
+  light:{dir:0,temp:50,focus:0},
+  views:0, zoomOpen:false, shot:false, results:[]
+};
+const targetCanvases = [];
+function buildTargets(){
+  STAGES.forEach((s,i)=>{
+    const c = document.createElement('canvas'); c.width=W; c.height=H;
+    const items = s.items.map((it,k)=>({id:k+1,type:it.type,x:it.x,y:it.y}));
+    renderFinal(c.getContext('2d'), items, s.light);
+    targetCanvases[i]=c;
+  });
+}
+
+/* ───────── DOM ───────── */
+const roomCanvas = $('roomCanvas'), rctx = roomCanvas.getContext('2d');
+const thumbCanvas = $('thumbCanvas'), tctx = thumbCanvas.getContext('2d');
+const tinyCanvas = document.createElement('canvas'); tinyCanvas.width=40; tinyCanvas.height=30;
+const zoomCanvas = $('zoomCanvas'), zctx = zoomCanvas.getContext('2d');
+const resCanvas = $('resCanvas'), resTarget = $('resTarget');
+const finalPhoto = $('finalPhoto');
+let toastTimer = null;
+function toast(msg){
+  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),1800);
+}
+
+function drawThumb(){
+  const tc = tinyCanvas.getContext('2d');
+  tc.imageSmoothingEnabled = true;
+  tc.clearRect(0,0,40,30);
+  tc.drawImage(targetCanvases[state.stage],0,0,40,30);
+  tctx.imageSmoothingEnabled = false;
+  tctx.clearRect(0,0,160,120);
+  tctx.drawImage(tinyCanvas,0,0,40,30,0,0,160,120);
+}
+
+// 팔레트
+const palette = $('palette');
+const palBtns = {};
+ORDER.forEach(type=>{
+  const b = document.createElement('button');
+  b.type='button'; b.className='palbtn ghost'; b.dataset.type=type;
+  const c = document.createElement('canvas'); c.width=48; c.height=48;
+  const s = Math.min(44/TYPES[type].w, 44/TYPES[type].h);
+  const cx = c.getContext('2d');
+  g = cx; cx.save();
+  cx.translate(24, 24 + TYPES[type].h*s/2); cx.scale(s,s);
+  DRAW[type](0,0); cx.restore();
+  const label = document.createElement('span'); label.textContent = TYPES[type].name;
+  const cnt = document.createElement('span'); cnt.className='cnt';
+  b.appendChild(c); b.appendChild(label); b.appendChild(cnt);
+  b.addEventListener('click',()=>selectType(type));
+  palette.appendChild(b); palBtns[type]={b,cnt};
+});
+
+function countType(type){ return state.items.filter(i=>i.type===type).length; }
+
+function selectType(type){
+  if(state.phase!=='place') return;
+  if(countType(type)>=MAX_PER_TYPE || state.items.length>=MAX_TOTAL){
+    toast(state.items.length>=MAX_TOTAL ? '가구는 최대 '+MAX_TOTAL+'개까지 배치할 수 있어요' : TYPES[type].name+'는 최대 '+MAX_PER_TYPE+'개까지 배치할 수 있어요');
+    return;
+  }
+  state.selectedType = (state.selectedType===type) ? null : type;
+  if(state.selectedType) state.selectedId = null;
+  updateUI(); renderRoom();
+}
+
+function updateUI(){
+  const st = STAGES[state.stage];
+  $('stageLabel').textContent = 'STAGE '+(state.stage+1)+' · '+st.name;
+  const vt = state.views+' / '+st.views;
+  $('viewsTop').textContent = vt; $('viewsText').textContent = vt;
+  const zb = $('zoomBtn');
+  zb.disabled = !(state.views>0 && (state.phase==='place'||state.phase==='light') && !state.zoomOpen);
+  zb.textContent = state.views>0 ? '🔍 목표 사진 확대' : '확인 횟수를 모두 사용했어요';
+  $('phaseBadge').textContent = state.phase==='place' ? '① 가구 배치' : state.phase==='light' ? '② 조명 설정' : '③ 촬영 결과';
+  $('panelPlace').classList.toggle('hidden', state.phase!=='place');
+  $('panelLight').classList.toggle('hidden', state.phase!=='light');
+  ORDER.forEach(type=>{
+    const p = palBtns[type];
+    p.b.classList.toggle('sel', state.selectedType===type);
+    const n = countType(type); p.cnt.textContent = n? '×'+n : '';
+  });
+  $('selHint').textContent = state.selectedType ? TYPES[state.selectedType].name+' 선택됨 — 방 바닥을 눌러 배치하세요' : '';
+  $('undoBtn').disabled = state.items.length===0;
+  $('clearBtn').disabled = state.items.length===0;
+}
+
+function renderRoom(){
+  renderFinal(rctx, state.items, state.light);
+  if(state.phase==='place' && state.selectedId!=null){
+    const it = state.items.find(i=>i.id===state.selectedId);
+    if(it){
+      const T = TYPES[it.type];
+      rctx.save();
+      rctx.setLineDash([3,2]); rctx.lineWidth=1; rctx.strokeStyle='#FFB347';
+      rctx.strokeRect(Math.round(it.x-T.w/2)-1.5, Math.round(it.y-T.h)-1.5, T.w+3, T.h+3);
+      rctx.restore();
+    }
+  }
+}
+
+/* ───────── 배치 / 드래그 ───────── */
+function clampPos(type,x,y){
+  const T = TYPES[type];
+  const minY = type==='rug' ? FLOOR_Y+T.h : FLOOR_Y+8;
+  return { x: clamp(x, T.w/2, W-T.w/2), y: clamp(y, minY, H-1) };
+}
+function toLogical(e){
+  const r = roomCanvas.getBoundingClientRect();
+  return { x:(e.clientX-r.left)*W/(r.width||W), y:(e.clientY-r.top)*H/(r.height||H) };
+}
+function hitTest(px,py){
+  const list = sortedItems(state.items);
+  for(let i=list.length-1;i>=0;i--){
+    const it=list[i], T=TYPES[it.type];
+    if(px>=it.x-T.w/2-2 && px<=it.x+T.w/2+2 && py>=it.y-T.h-2 && py<=it.y+2) return it;
+  }
+  return null;
+}
+function placeItem(type,px,py){
+  if(state.items.length>=MAX_TOTAL || countType(type)>=MAX_PER_TYPE) return;
+  const p = clampPos(type,px,py);
+  const it = {id:state.nextId++, type, x:p.x, y:p.y};
+  state.items.push(it);
+  state.selectedId = it.id; state.selectedType = null;
+}
+
+roomCanvas.addEventListener('pointerdown',e=>{
+  if(state.phase!=='place'||state.zoomOpen) return;
+  if(e.pointerType==='mouse' && e.button!==0) return;
+  e.preventDefault();
+  const p = toLogical(e);
+  const hit = hitTest(p.x,p.y);
+  if(state.selectedType){
+    // 가구를 선택한 상태에서는 기존 가구 위에도 겹쳐 배치할 수 있고, 배치 직후 바로 드래그할 수 있다
+    if(p.y < FLOOR_Y){ toast('바닥을 눌러 배치하세요'); }
+    else {
+      placeItem(state.selectedType,p.x,p.y);
+      const ni = state.items[state.items.length-1];
+      state.drag = {id:ni.id,pid:e.pointerId,dx:ni.x-p.x,dy:ni.y-p.y};
+      try{ roomCanvas.setPointerCapture(e.pointerId); }catch(_){}
+    }
+  } else if(hit){
+    state.selectedId = hit.id;
+    state.drag = {id:hit.id,pid:e.pointerId,dx:hit.x-p.x,dy:hit.y-p.y};
+    try{ roomCanvas.setPointerCapture(e.pointerId); }catch(_){}
+  } else {
+    state.selectedId = null;
+  }
+  updateUI(); renderRoom();
+});
+roomCanvas.addEventListener('pointermove',e=>{
+  const d = state.drag;
+  if(!d || e.pointerId!==d.pid) return;
+  e.preventDefault();
+  const it = state.items.find(i=>i.id===d.id); if(!it) return;
+  const p = toLogical(e);
+  const c = clampPos(it.type,p.x+d.dx,p.y+d.dy);
+  it.x=c.x; it.y=c.y;
+  renderRoom();
+});
+function endDrag(e){
+  const d = state.drag;
+  if(!d || (e && e.pointerId!==d.pid)) return;
+  state.drag = null;
+  try{ roomCanvas.releasePointerCapture(e.pointerId); }catch(_){}
+  renderRoom();
+}
+roomCanvas.addEventListener('pointerup',endDrag);
+roomCanvas.addEventListener('pointercancel',endDrag);
+roomCanvas.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+roomCanvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+$('undoBtn').addEventListener('click',()=>{
+  if(state.phase!=='place'||!state.items.length) return;
+  const last = state.items.pop();
+  if(state.selectedId===last.id) state.selectedId=null;
+  updateUI(); renderRoom();
+});
+$('clearBtn').addEventListener('click',()=>{
+  if(state.phase!=='place') return;
+  state.items=[]; state.selectedId=null; state.selectedType=null; state.drag=null;
+  updateUI(); renderRoom();
+});
+$('doneBtn').addEventListener('click',()=>{
+  if(state.phase!=='place') return;
+  if(!state.items.length){ toast('가구를 하나 이상 배치해 주세요'); return; }
+  state.phase='light'; state.selectedId=null; state.selectedType=null; state.drag=null;
+  updateUI(); renderRoom();
+});
+$('backBtn').addEventListener('click',()=>{
+  if(state.phase!=='light') return;
+  state.phase='place';
+  updateUI(); renderRoom();
+});
+
+/* ───────── 조명 슬라이더 ───────── */
+function syncSliders(){
+  $('dirRange').value = state.light.dir; $('dirVal').textContent = state.light.dir+'°';
+  $('tempRange').value = state.light.temp;
+  $('tempVal').textContent = state.light.temp<35 ? state.light.temp+' 차가움' : state.light.temp>65 ? state.light.temp+' 노을빛' : String(state.light.temp);
+  $('focusRange').value = state.light.focus; $('focusVal').textContent = String(state.light.focus);
+}
+function bindSlider(id,key){
+  $(id).addEventListener('input',e=>{
+    if(state.phase!=='light') return;
+    state.light[key] = parseFloat(e.target.value);
+    syncSliders(); renderRoom();
+  });
+}
+bindSlider('dirRange','dir'); bindSlider('tempRange','temp'); bindSlider('focusRange','focus');
+
+/* ───────── 목표 사진 확대 ───────── */
+function openZoom(){
+  if(state.zoomOpen || state.views<=0) return;
+  if(state.phase!=='place' && state.phase!=='light') return;
+  state.views--; state.zoomOpen=true; state.drag=null;
+  zctx.imageSmoothingEnabled=false;
+  zctx.clearRect(0,0,W,H);
+  zctx.drawImage(targetCanvases[state.stage],0,0);
+  $('zoomModal').hidden=false;
+  updateUI();
+}
+function closeZoom(){
+  if(!state.zoomOpen) return;
+  state.zoomOpen=false; $('zoomModal').hidden=true; updateUI();
+}
+$('zoomBtn').addEventListener('click',openZoom);
+$('zoomClose').addEventListener('click',closeZoom);
+$('zoomModal').addEventListener('click',e=>{ if(e.target===$('zoomModal')) closeZoom(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeZoom(); });
+
+/* ───────── 촬영 / 결과 ───────── */
+function shoot(){
+  if(state.phase!=='light' || state.shot) return;
+  state.shot = true; state.phase='result';
+  const st = STAGES[state.stage];
+  const r = computeScore(state.items, st);
+  state.results[state.stage] = r.total;
+
+  const f = $('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+
+  renderFinal(resCanvas.getContext('2d'), state.items, state.light);
+  const rt = resTarget.getContext('2d'); rt.clearRect(0,0,W,H); rt.drawImage(targetCanvases[state.stage],0,0);
+  $('resStage').textContent = 'STAGE '+(state.stage+1)+' · '+st.name+' 촬영 결과';
+  $('resScore').textContent = r.total+'%';
+  $('resMsg').textContent = r.total>=90 ? '완벽한 디오라마!' : r.total>=70 ? '감성적인 장면 완성!' : '다음 촬영에서 더 맞춰봐요!';
+  $('resDetail').textContent = '가구 배치 '+r.furn+'%  ·  조명/초점 '+r.light+'%';
+  $('nextBtn').textContent = state.stage<STAGES.length-1 ? '다음 스테이지' : '게임 완료 보기';
+  updateUI();
+  setTimeout(()=>{ if(state.phase==='result') $('resultModal').hidden=false; }, 450);
+}
+$('shootBtn').addEventListener('click',shoot);
+
+$('nextBtn').addEventListener('click',()=>{
+  if(state.phase!=='result') return;
+  $('resultModal').hidden=true;
+  if(state.stage<STAGES.length-1) initStage(state.stage+1);
+  else showFinal();
+});
+
+function showFinal(){
+  state.phase='final';
+  // 마지막 스테이지에서 실제 촬영한 방을 폴라로이드 사진으로 보관
+  const fpctx = finalPhoto.getContext('2d');
+  fpctx.imageSmoothingEnabled = false;
+  fpctx.clearRect(0,0,W,H);
+  fpctx.drawImage(resCanvas,0,0,W,H);
+  const ul = $('finalList'); ul.innerHTML='';
+  let sum=0;
+  STAGES.forEach((s,i)=>{
+    const sc = state.results[i]||0; sum+=sc;
+    const li=document.createElement('li');
+    const a=document.createElement('span'); a.textContent='STAGE '+(i+1)+' · '+s.name;
+    const b=document.createElement('b'); b.textContent=sc+'%';
+    li.appendChild(a); li.appendChild(b); ul.appendChild(li);
+  });
+  const avg = Math.round(sum/STAGES.length);
+  $('finalAvg').textContent = '평균 '+avg+'%';
+  $('finalMsg').textContent = avg>=90 ? '완벽한 디오라마!' : avg>=70 ? '감성적인 장면 완성!' : '다음 촬영에서 더 맞춰봐요!';
+  $('finalModal').hidden=false;
+}
+$('restartBtn').addEventListener('click',()=>{
+  $('finalModal').hidden=true;
+  state.results=[];
+  initStage(0);
+});
+
+/* ───────── 스테이지 초기화 ───────── */
+function initStage(i){
+  state.stage = i;
+  state.phase = 'place';
+  state.items = []; state.nextId = 1;
+  state.selectedType = null; state.selectedId = null; state.drag = null;
+  state.light = {dir:0,temp:50,focus:0};
+  state.views = STAGES[i].views;
+  state.zoomOpen = false; state.shot = false;
+  $('zoomModal').hidden = true; $('resultModal').hidden = true; $('finalModal').hidden = true;
+  syncSliders();
+  drawThumb();
+  updateUI();
+  renderRoom();
+}
+
+buildTargets();
+$('startBtn').addEventListener('click',()=>{
+  $('startModal').hidden = true;
+  initStage(0);
+});
+initStage(0);
+
+// 디버깅/테스트용
+window.SyncTheScene = { state, STAGES, computeScore, initStage, shoot, openZoom, closeZoom, placeItem, renderRoom, updateUI };
+})();
+</script>
+</body>
+</html>
